@@ -14,12 +14,16 @@ import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemAvatar from '@mui/material/ListItemAvatar';
 import Avatar from '@mui/material/Avatar';
-import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import Backdrop from '@mui/material/Backdrop';
+import CircularProgress from '@mui/material/CircularProgress';
+import _isEqual from 'lodash/isEqual';
+import usePrevious from '../../../hooks/usePrevious';
+
+import './styles.css';
 
 import { login as onLoginFacebook, logout as onLogoutFacebook } from '../../../services/facebook';
-
-import Checkbox from '../../../misc/Checkbox';
-import FormInlineButton from '../../../misc/FormInlineButton';
 
 const id = 'facebook';
 const name = 'Facebook Live';
@@ -45,6 +49,12 @@ const requires = {
 		audio: ['aac'],
 		video: ['h264'],
 	},
+};
+const PAGE_ME_ID = 'ME';
+const SCREENS = {
+	LIST: 'list',
+	CREATE_EVENT: 'create_event',
+	EVENT: 'event',
 };
 
 function ServiceIcon(props) {
@@ -151,15 +161,27 @@ function init(settings) {
 }
 
 function Service(props) {
-	const { authenticated, setAuthenticated, channelId, restreamer } = props;
+	const { authenticated, setAuthenticated, channelId, restreamer, onServiceDone } = props;
 	const settings = init(props.settings);
 	const [accountInfo, setAccountInfo] = React.useState({});
 	const [livestream, setLivestream] = React.useState({});
+	const [eventMeta, setEventMeta] = React.useState({ title: '', description: '' });
+	const [avatar, setAvatar] = React.useState('');
+	const [pageSelected, setPageSelected] = React.useState({});
+	const [isLiveCreating, setIsLiveCreating] = React.useState(false);
 	const [snack, setSnack] = React.useState({
 		open: false,
 		message: '',
 		severity: 'success',
 	});
+	const [currentScreen, setCurrentScreen] = React.useState(SCREENS.LIST);
+	const prevSettings = usePrevious(props.settings);
+
+	React.useEffect(() => {
+		if (livestream?.id && !_isEqual(props.settings, prevSettings) && onServiceDone) {
+			onServiceDone();
+		}
+	}, [props.settings]);
 
 	const handleCloseSnack = () => {
 		setSnack({ open: false, message: '', severity: 'success' });
@@ -189,157 +211,232 @@ function Service(props) {
 						setSnack({ message: 'Phiên đăng nhập hết hạn', severity: 'error', open: true });
 					}
 				});
+
+			if (restreamer?.GetFBMePicture) {
+				restreamer
+					.GetFBMePicture(channelId)
+					.then((picture) => {
+						setAvatar(picture?.url || '');
+					})
+					.catch((e) => {
+						setAvatar('');
+					});
+			}
 		}
 	}, [authenticated]);
 
-	const handleChange = (what) => (event) => {
-		const value = event.target.value;
+	const handleChangeStreamKey = (live) => {
+		const streamKeySplit = String(live?.secure_stream_url).split('/');
 
-		if (['rtmp_primary', 'rtmp_backup'].includes(what)) {
-			settings[what] = !settings[what];
-		} else {
-			settings[what] = value;
-		}
+		settings.stream_key_primary = streamKeySplit[streamKeySplit.length - 1];
 
-		const output = createOutput(settings);
-
-		props.onChange(output, settings);
-	};
-
-	const createOutput = (settings) => {
 		const outputs = [];
 
 		const output_primary = {
-			address: 'rtmps://live-api-s.facebook.com:443/rtmp/' + settings.stream_key_primary,
+			address: live?.secure_stream_url,
 			options: ['-f', 'flv'],
 		};
 
-		const output_backup = {
-			address: 'rtmps://live-api-s.facebook.com:443/rtmp/' + settings.stream_key_backup,
-			options: ['-f', 'flv'],
-		};
-
-		if (settings.stream_key_primary.length !== 0) {
-			if (settings.rtmp_primary) {
-				outputs.push(output_primary);
-			}
+		if (settings.stream_key_primary.length !== 0 && settings.rtmp_primary) {
+			outputs.push(output_primary);
 		}
 
-		if (settings.stream_key_backup.length !== 0) {
-			if (settings.rtmp_backup) {
-				outputs.push(output_backup);
-			}
-		}
-
-		return outputs;
+		props.onChange(outputs, settings);
 	};
 
-	const handleCreateFbLiveStream = async (pageId) => {
-		if (restreamer?.CreateFbLiveStream) {
+	const handleBackCreateLivestream = () => {
+		setPageSelected({});
+		setEventMeta({ title: '', description: '' });
+		navigateScreen(SCREENS.LIST);
+	};
+
+	const handleClickPage = (page) => {
+		setPageSelected(page);
+		navigateScreen(SCREENS.CREATE_EVENT);
+	};
+
+	const navigateScreen = (screen) => {
+		setCurrentScreen(screen);
+	};
+
+	const handleCreateLivestream = () => {
+		if (pageSelected?.id === PAGE_ME_ID && restreamer?.CreateFbLiveStreamOnMyTimeline) {
+			setIsLiveCreating(true);
+
 			restreamer
-				.CreateFbLiveStream(channelId, pageId)
+				.CreateFbLiveStreamOnMyTimeline(channelId, { title: eventMeta?.title, description: eventMeta?.description })
 				.then((live) => {
-					setLivestream(live)
+					setLivestream(live);
+					handleChangeStreamKey(live);
+					navigateScreen(SCREENS.EVENT);
 				})
 				.catch((e) => {
 					setSnack({ message: e.message || 'Không thể tạo livestream', severity: 'error', open: true });
+				})
+				.finally(() => {
+					setIsLiveCreating(false);
+				});
+		} else if (pageSelected?.id && restreamer?.CreateFbLiveStream) {
+			setIsLiveCreating(true);
+
+			restreamer
+				.CreateFbLiveStream(channelId, pageSelected.id, { title: eventMeta?.title, description: eventMeta?.description })
+				.then((live) => {
+					setLivestream(live);
+					handleChangeStreamKey(live);
+					navigateScreen(SCREENS.EVENT);
+				})
+				.catch((e) => {
+					setSnack({ message: e.message || 'Không thể tạo livestream', severity: 'error', open: true });
+				})
+				.finally(() => {
+					setIsLiveCreating(false);
 				});
 		}
 	};
 
-	if (authenticated) {
-		if (!Array.isArray(accountInfo?.data) || accountInfo.data.length === 0) return null;
+	const handleChangeEventMeta = (e) => {
+		const { name, value } = e.target;
 
-		if (livestream?.id) {
-			return (<>
-				<p>ID: {livestream.id}</p>
-				<p>Stream URL: {livestream.stream_url}</p>
-				<p>Secure Stream URL: {livestream.secure_stream_url}</p>
-			</>)
-		}
+		setEventMeta({ ...eventMeta, [name]: value });
+	};
+
+	if (!authenticated) return null;
+
+	if (!Array.isArray(accountInfo?.data) || accountInfo.data.length === 0) return null;
+
+	if (currentScreen === SCREENS.EVENT) {
+		if (!livestream?.id) return null;
 
 		return (
 			<Grid container spacing={2}>
 				<Grid item xs={12}>
-					<List sx={{ width: '100%' }}>
-						{accountInfo.data.map((page) => (
-							<ListItem
-								dense
-								key={page.id}
-								sx={{ backgroundColor: '#FFF', marginBottom: 1, borderRadius: 1, boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)', cursor: 'pointer' }}
-								onClick={() => {
-									handleCreateFbLiveStream(page.id);
-								}}
-							>
-								<ListItemAvatar>
-									<Avatar>
-										<img src={page.picture?.data?.url} alt={page.name} />
-									</Avatar>
-								</ListItemAvatar>
-								<ListItemText primary={<span style={{ color: '#313234', fontWeight: 'bold' }}>{page.name}</span>} />
-							</ListItem>
-						))}
-					</List>
+					<TextField variant="outlined" fullWidth label={<Trans>Service Name</Trans>} value="Facebook Live" onChange={() => {}} />
 				</Grid>
-				<Snackbar
-					anchorOrigin={{
-						vertical: 'top',
-						horizontal: 'right',
-					}}
-					open={snack.open}
-					autoHideDuration={3000}
-					onClose={handleCloseSnack}
+				<Grid item xs={12}>
+					<TextField variant="outlined" fullWidth label={<Trans>Title</Trans>} value={eventMeta.title} onChange={() => {}} />
+				</Grid>
+				<Grid item xs={12}>
+					<TextField
+						variant="outlined"
+						fullWidth
+						multiline
+						rows={3}
+						label={<Trans>Description</Trans>}
+						value={eventMeta.description}
+						onChange={() => {}}
+					/>
+				</Grid>
+				<Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+					<Button variant="outlined" color="success" onClick={handleBackCreateLivestream}>
+						Change
+					</Button>
+					&nbsp;&nbsp;
+					<Button variant="outlined" onClick={() => { navigateScreen(SCREENS.CREATE_EVENT) }}>Edit</Button>
+				</Grid>
+			</Grid>
+		);
+	}
+
+	if (currentScreen === SCREENS.CREATE_EVENT) {
+		if (!pageSelected?.id) return null;
+
+		return (
+			<Grid container spacing={2}>
+				<Grid item xs={12}>
+					<Box display="flex" justifyContent="space-between" alignItems="center">
+						<ArrowBackIcon sx={{ cursor: 'pointer' }} onClick={handleBackCreateLivestream} />
+						<span>Create Event</span>
+						<Avatar alt="Remy Sharp" src={avatar} />
+					</Box>
+				</Grid>
+				<Grid item xs={12}>
+					<TextField variant="outlined" fullWidth label="Title" name="title" value={eventMeta.title} onChange={handleChangeEventMeta} />
+				</Grid>
+				<Grid item xs={12}>
+					<TextField
+						variant="outlined"
+						fullWidth
+						label="Description"
+						multiline
+						rows={3}
+						name="description"
+						value={eventMeta.description}
+						onChange={handleChangeEventMeta}
+					/>
+				</Grid>
+				<Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }} className="fb_btn_create_event">
+					<Button
+						variant="contained"
+						loading={isLiveCreating}
+						onClick={handleCreateLivestream}
+						disabled={isLiveCreating || !eventMeta.title || !eventMeta.description}
+						color="success"
+						sx={{ color: '#FFF' }}
+					>
+						Create
+					</Button>
+				</Grid>
+				<Backdrop
+					sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+					open={isLiveCreating}
 				>
-					<Alert variant="filled" elevation={6} onClose={handleCloseSnack} severity={snack.severity}>
-						{snack.message}
-					</Alert>
-				</Snackbar>
+					<CircularProgress color="inherit" />
+				</Backdrop>
 			</Grid>
 		);
 	}
 
 	return (
 		<Grid container spacing={2}>
-			{settings.rtmp_primary === true && (
-				<Grid item xs={12} md={9}>
-					<TextField
-						variant="outlined"
-						fullWidth
-						label={<Trans>Primary stream key</Trans>}
-						value={settings.stream_key_primary}
-						onChange={handleChange('stream_key_primary')}
-					/>
-				</Grid>
-			)}
-			{settings.rtmp_primary === true && (
-				<Grid item xs={12} md={3}>
-					<FormInlineButton target="blank" href={stream_key_link} component="a">
-						<Trans>GET</Trans>
-					</FormInlineButton>
-				</Grid>
-			)}
-			{settings.rtmp_backup === true && (
-				<Grid item xs={12} md={9}>
-					<TextField
-						variant="outlined"
-						fullWidth
-						label={<Trans>Backup stream key</Trans>}
-						value={settings.stream_key_backup}
-						onChange={handleChange('stream_key_backup')}
-					/>
-				</Grid>
-			)}
-			{settings.rtmp_backup === true && (
-				<Grid item xs={12} md={3}>
-					<FormInlineButton target="blank" href={stream_key_link} component="a">
-						<Trans>GET</Trans>
-					</FormInlineButton>
-				</Grid>
-			)}
 			<Grid item xs={12}>
-				<Checkbox label={<Trans>Enable primary stream</Trans>} checked={settings.rtmp_primary} onChange={handleChange('rtmp_primary')} />
-				<Checkbox label={<Trans>Enable backup stream</Trans>} checked={settings.rtmp_backup} onChange={handleChange('rtmp_backup')} />
+				<List sx={{ width: '100%' }}>
+					<ListItem
+						dense={false}
+						sx={{ backgroundColor: '#FFF', marginBottom: 1, borderRadius: 1, boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)', cursor: 'pointer' }}
+						onClick={() => {
+							handleClickPage({ id: PAGE_ME_ID, image: avatar });
+						}}
+					>
+						<ListItemAvatar>
+							<Avatar>
+								<img src={avatar} alt="avatar" />
+							</Avatar>
+						</ListItemAvatar>
+						<ListItemText primary={<span style={{ color: '#004185', fontWeight: 'bold' }}>Publish on my timeline</span>} />
+					</ListItem>
+					{accountInfo.data.map((page) => (
+						<ListItem
+							dense={false}
+							key={page.id}
+							sx={{ backgroundColor: '#FFF', marginBottom: 1, borderRadius: 1, boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)', cursor: 'pointer' }}
+							onClick={() => {
+								handleClickPage({ id: page.id, image: page.picture?.data?.url });
+							}}
+						>
+							<ListItemAvatar>
+								<Avatar>
+									<img src={page.picture?.data?.url} alt={page.name} />
+								</Avatar>
+							</ListItemAvatar>
+							<ListItemText primary={<span style={{ color: '#313234', fontWeight: 'bold' }}>{page.name}</span>} />
+						</ListItem>
+					))}
+				</List>
 			</Grid>
+			<Snackbar
+				anchorOrigin={{
+					vertical: 'top',
+					horizontal: 'right',
+				}}
+				open={snack.open}
+				autoHideDuration={3000}
+				onClose={handleCloseSnack}
+			>
+				<Alert variant="filled" elevation={6} onClose={handleCloseSnack} severity={snack.severity}>
+					{snack.message}
+				</Alert>
+			</Snackbar>
 		</Grid>
 	);
 }

@@ -181,7 +181,7 @@ export default function Add(props) {
 		setSaving(true);
 
 		const [global, inputs, outputs] = helper.createInputsOutputs($sources, $settings.profiles, $settings.outputs);
-
+		
 		const [id, err] = await props.restreamer.CreateEgress(_channelid, $service, global, inputs, outputs, $settings.control);
 		if (err !== null) {
 			setSaving(false);
@@ -420,6 +420,7 @@ export default function Add(props) {
 												authenticated={serviceAuthenticated}
 												setAuthenticated={setServiceAuthenticated}
 												restreamer={props.restreamer}
+												onServiceDone={handleServiceDone}
 											/>
 										</Grid>
 									</TabContent>
