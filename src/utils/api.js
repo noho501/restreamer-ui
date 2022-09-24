@@ -1,4 +1,4 @@
-import { Construction } from "@mui/icons-material";
+import { Construction } from '@mui/icons-material';
 
 class API {
 	constructor(address) {
@@ -135,7 +135,7 @@ class API {
 
 				if ('code' in body && 'message' in body) {
 					res.err.message = body.message;
-					res.err.details = body?.details
+					res.err.details = body?.details;
 				} else {
 					res.err.message = body;
 				}
@@ -483,15 +483,35 @@ class API {
 		});
 	}
 
-	CreateFbLiveStream(name, pageId) {
+	CreateFbLiveStream(name, pageId, body) {
 		const url = '/v3/process/' + name + '/facebook/live';
 
 		return this._POST(url, {
 			expect: 'json',
-			body: JSON.stringify({ page_id: pageId }),
+			body: JSON.stringify({ page_id: `${pageId}`, ...body }),
 			headers: {
 				'Content-Type': 'application/json',
 			},
+		});
+	}
+
+	CreateFbLiveStreamOnMyTimeline(name, body) {
+		const url = '/v3/process/' + name + '/facebook/me/live';
+
+		return this._POST(url, {
+			expect: 'json',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify(body),
+		});
+	}
+
+	GetFBMePicture(name) {
+		const url = '/v3/process/' + name + '/facebook/me/picture';
+
+		return this._GET(url, {
+			expect: 'image/jpeg',
 		});
 	}
 }

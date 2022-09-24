@@ -2641,8 +2641,16 @@ class Restreamer {
 		return this._checkAuthFb(channelId);
 	}
 
-	CreateFbLiveStream(channelId, pageId) {
-		return this._createFbLiveStream(channelId, pageId);
+	CreateFbLiveStream(channelId, pageId, body) {
+		return this._createFbLiveStream(channelId, pageId, body);
+	}
+
+	CreateFbLiveStreamOnMyTimeline(channelId, body) {
+		return this._createFbLiveStreamOnMyTimeline(channelId, body);
+	}
+
+	GetFBMePicture(channelId) {
+		return this._getFBMePicture(channelId);
 	}
 
 	HasService() {
@@ -2789,14 +2797,40 @@ class Restreamer {
 		const [val, err] = await this._call(this.api.GetFbAccountInfo, id);
 		
 		if (err !== null) {
+			if ((err?.details) || [].includes('fb_err_190')) {
+				window.location.reload();
+
+				return err;
+			}
+
 			return err;
 		}
 
 		return val;
 	}
 
-	async _createFbLiveStream(id, pageId) {
-		const [val, err] = await this._call(this.api.CreateFbLiveStream, id, pageId);
+	async _createFbLiveStream(id, pageId, body) {
+		const [val, err] = await this._call(this.api.CreateFbLiveStream, id, pageId, body);
+		
+		if (err !== null) {
+			return Promise.reject(err);
+		}
+
+		return val;
+	}
+
+	async _createFbLiveStreamOnMyTimeline(id, body) {
+		const [val, err] = await this._call(this.api.CreateFbLiveStreamOnMyTimeline, id, body);
+		
+		if (err !== null) {
+			return Promise.reject(err);
+		}
+
+		return val;
+	}
+
+	async _getFBMePicture(id) {
+		const [val, err] = await this._call(this.api.GetFBMePicture, id);
 		
 		if (err !== null) {
 			return Promise.reject(err);

@@ -34,6 +34,7 @@
 		"handlebars": "^4.7.7",
 		"hls.js": "^0.14.17",
 		"jwt-decode": "^3.1.2",
+		"lodash": "^4.17.21",
 		"make-plural": "^7.1.0",
 		"react": "^17.0.2",
 		"react-colorful": "^5.5.1",

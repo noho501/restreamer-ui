@@ -15,7 +15,6 @@ RUN cd /ui && \
 	npm config set fetch-retries 10 && \
 	npm config set fetch-retry-mintimeout 100000 && \
 	npm config set fetch-retry-maxtimeout 600000 && \
-	npm config set cache-min 3600 && \
 	npm config ls -l && \
 	npm install && \
 	npm run build
