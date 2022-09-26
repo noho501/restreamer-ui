@@ -1,7 +1,8 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 
-import { faFacebook } from '@fortawesome/free-brands-svg-icons';
+import { faFacebook, faFacebookF } from '@fortawesome/free-brands-svg-icons';
+import { faPowerOff } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Trans } from '@lingui/macro';
 import Grid from '@mui/material/Grid';
@@ -116,20 +117,22 @@ const ServiceLoginButton = ({ cbLogin, cbLogout, setAuthenticated, authenticated
 				sx={[{ color: '#FFF', backgroundColor: '#747171d6', textTransform: 'capitalize' }, { '&:hover': { backgroundColor: '#747171d6' } }]}
 				onClick={handleLogoutFb}
 			>
-				<Trans>Log out</Trans>
+				<FontAwesomeIcon icon={faPowerOff} size="lg" style={{ color: '#FFF' }} />
+				&nbsp;
+				<Trans>Logout Facebook</Trans>
 			</Button>
 		);
 	}
 
 	return (
 		<>
-			<Button
-				loading={loading}
-				size="small"
-				sx={[{ color: '#FFF', backgroundColor: '#4267B2', textTransform: 'capitalize' }, { '&:hover': { backgroundColor: '#4267B2' } }]}
-				onClick={handleLoginFb}
-			>
-				<Trans>Login</Trans>
+			<Button loading={loading} onClick={handleLoginFb} className="login_btn--fb">
+				<span className="logo_icon--fb">
+					<FontAwesomeIcon icon={faFacebookF} size="lg" style={{ color: '#FFF' }} />
+				</span>
+				<span className="login_text--fb">
+					<Trans>Login with Facebook</Trans>
+				</span>
 			</Button>
 			<Snackbar
 				anchorOrigin={{
@@ -161,7 +164,7 @@ function init(settings) {
 }
 
 function Service(props) {
-	const { authenticated, setAuthenticated, channelId, restreamer, onServiceDone } = props;
+	const { authenticated, setAuthenticated, channelId, restreamer, onServiceDone, screen, eventMeta: eventMetaProps, type } = props;
 	const settings = init(props.settings);
 	const [accountInfo, setAccountInfo] = React.useState({});
 	const [livestream, setLivestream] = React.useState({});
@@ -174,7 +177,7 @@ function Service(props) {
 		message: '',
 		severity: 'success',
 	});
-	const [currentScreen, setCurrentScreen] = React.useState(SCREENS.LIST);
+	const [currentScreen, setCurrentScreen] = React.useState(screen || SCREENS.LIST);
 	const prevSettings = usePrevious(props.settings);
 
 	React.useEffect(() => {
@@ -241,7 +244,7 @@ function Service(props) {
 			outputs.push(output_primary);
 		}
 
-		props.onChange(outputs, settings);
+		props.onChange(outputs, settings, { ...eventMeta, profile_name: pageSelected?.name, profile_image: pageSelected?.image });
 	};
 
 	const handleBackCreateLivestream = () => {
@@ -268,7 +271,7 @@ function Service(props) {
 				.then((live) => {
 					setLivestream(live);
 					handleChangeStreamKey(live);
-					navigateScreen(SCREENS.EVENT);
+					// navigateScreen(SCREENS.EVENT);
 				})
 				.catch((e) => {
 					setSnack({ message: e.message || 'Không thể tạo livestream', severity: 'error', open: true });
@@ -284,7 +287,7 @@ function Service(props) {
 				.then((live) => {
 					setLivestream(live);
 					handleChangeStreamKey(live);
-					navigateScreen(SCREENS.EVENT);
+					// navigateScreen(SCREENS.EVENT);
 				})
 				.catch((e) => {
 					setSnack({ message: e.message || 'Không thể tạo livestream', severity: 'error', open: true });
@@ -303,18 +306,17 @@ function Service(props) {
 
 	if (!authenticated) return null;
 
-	if (!Array.isArray(accountInfo?.data) || accountInfo.data.length === 0) return null;
-
-	if (currentScreen === SCREENS.EVENT) {
-		if (!livestream?.id) return null;
-
+	if (currentScreen === SCREENS.EVENT && eventMetaProps.title && type === 'edit') {
 		return (
 			<Grid container spacing={2}>
 				<Grid item xs={12}>
-					<TextField variant="outlined" fullWidth label={<Trans>Service Name</Trans>} value="Facebook Live" onChange={() => {}} />
+					<Box display="flex" justifyContent="center" alignItems="center" flexDirection="column">
+						<Avatar alt="Remy Sharp" src={eventMetaProps.image} />
+						<strong>{eventMetaProps.name}</strong>
+					</Box>
 				</Grid>
 				<Grid item xs={12}>
-					<TextField variant="outlined" fullWidth label={<Trans>Title</Trans>} value={eventMeta.title} onChange={() => {}} />
+					<TextField variant="outlined" fullWidth label={<Trans>Title</Trans>} value={eventMetaProps.title} onChange={() => {}} />
 				</Grid>
 				<Grid item xs={12}>
 					<TextField
@@ -323,20 +325,15 @@ function Service(props) {
 						multiline
 						rows={3}
 						label={<Trans>Description</Trans>}
-						value={eventMeta.description}
+						value={eventMetaProps.description}
 						onChange={() => {}}
 					/>
-				</Grid>
-				<Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-					<Button variant="outlined" color="success" onClick={handleBackCreateLivestream}>
-						Change
-					</Button>
-					&nbsp;&nbsp;
-					<Button variant="outlined" onClick={() => { navigateScreen(SCREENS.CREATE_EVENT) }}>Edit</Button>
 				</Grid>
 			</Grid>
 		);
 	}
+
+	if (!Array.isArray(accountInfo?.data) || accountInfo.data.length === 0) return null;
 
 	if (currentScreen === SCREENS.CREATE_EVENT) {
 		if (!pageSelected?.id) return null;
@@ -347,7 +344,7 @@ function Service(props) {
 					<Box display="flex" justifyContent="space-between" alignItems="center">
 						<ArrowBackIcon sx={{ cursor: 'pointer' }} onClick={handleBackCreateLivestream} />
 						<span>Create Event</span>
-						<Avatar alt="Remy Sharp" src={avatar} />
+						<Avatar alt="Remy Sharp" src={pageSelected.image} />
 					</Box>
 				</Grid>
 				<Grid item xs={12}>
@@ -377,10 +374,7 @@ function Service(props) {
 						Create
 					</Button>
 				</Grid>
-				<Backdrop
-					sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
-					open={isLiveCreating}
-				>
+				<Backdrop sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }} open={isLiveCreating}>
 					<CircularProgress color="inherit" />
 				</Backdrop>
 			</Grid>
@@ -395,7 +389,7 @@ function Service(props) {
 						dense={false}
 						sx={{ backgroundColor: '#FFF', marginBottom: 1, borderRadius: 1, boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)', cursor: 'pointer' }}
 						onClick={() => {
-							handleClickPage({ id: PAGE_ME_ID, image: avatar });
+							handleClickPage({ id: PAGE_ME_ID, image: avatar, name: 'My Profile' });
 						}}
 					>
 						<ListItemAvatar>
@@ -411,7 +405,7 @@ function Service(props) {
 							key={page.id}
 							sx={{ backgroundColor: '#FFF', marginBottom: 1, borderRadius: 1, boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)', cursor: 'pointer' }}
 							onClick={() => {
-								handleClickPage({ id: page.id, image: page.picture?.data?.url });
+								handleClickPage({ id: page.id, image: page.picture?.data?.url, name: page.name });
 							}}
 						>
 							<ListItemAvatar>

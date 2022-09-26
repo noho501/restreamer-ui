@@ -152,7 +152,7 @@ export default function Add(props) {
 		setService(service);
 	};
 
-	const handleServiceChange = (outputs, settings) => {
+	const handleServiceChange = (outputs, settings, metaData = {}) => {
 		if (!Array.isArray(outputs)) {
 			outputs = [outputs];
 		}
@@ -161,6 +161,7 @@ export default function Add(props) {
 			...$settings,
 			outputs: outputs,
 			settings: settings,
+			...metaData,
 		});
 	};
 
