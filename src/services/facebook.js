@@ -1,13 +1,11 @@
 export const login = () =>
 	new Promise(async (rs, rj) => {
 		window.FB.getLoginStatus(function (response) {
-			console.log('...1', response, response.authResponse);
 			if (response.status === 'connected') {
 				rs({ userId: response.authResponse.userID, accessToken: response.authResponse.accessToken });
 			} else {
 				window.FB.login(
 					function (res) {
-						console.log('...2', res?.authResponse);
 						if (res?.authResponse?.accessToken) {
 							rs({ userId: res.authResponse.userID, accessToken: res.authResponse.accessToken });
 						} else {
