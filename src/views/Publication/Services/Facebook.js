@@ -333,7 +333,7 @@ function Service(props) {
 		);
 	}
 
-	if (!Array.isArray(accountInfo?.data) || accountInfo.data.length === 0) return null;
+	if (!Array.isArray(accountInfo?.data)) return null;
 
 	if (currentScreen === SCREENS.CREATE_EVENT) {
 		if (!pageSelected?.id) return null;
