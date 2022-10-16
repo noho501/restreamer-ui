@@ -2699,6 +2699,22 @@ class Restreamer {
 		return await this._listProcesses(filter, '', ids);
 	}
 
+	CallbackLogin(serviceId, name, body) {
+		if (serviceId === 'facebook') {
+			return this._loginFb(name, body);
+		}
+
+		return Promise.resolve(true);
+	}
+
+	CallbackLogout(serviceId, name) {
+		if (serviceId === 'facebook') {
+			return this._logoutFb(name)
+		}
+
+		return Promise.resolve(true);
+	}
+
 	async GetDebug(processid) {
 		const about = await this._getAboutDebug();
 		const skills = await this.Skills();
@@ -2743,6 +2759,26 @@ class Restreamer {
 		}
 
 		return this.hasUpdates;
+	}
+
+	GetFBAccountInfo(channelId) {
+		return this._getFbAccountInfo(channelId);
+	}
+
+	CheckAuthFb(channelId) {
+		return this._checkAuthFb(channelId);
+	}
+
+	CreateFbLiveStream(channelId, pageId, body) {
+		return this._createFbLiveStream(channelId, pageId, body);
+	}
+
+	CreateFbLiveStreamOnMyTimeline(channelId, body) {
+		return this._createFbLiveStreamOnMyTimeline(channelId, body);
+	}
+
+	GetFBMePicture(channelId) {
+		return this._getFBMePicture(channelId);
 	}
 
 	HasService() {
@@ -2860,6 +2896,86 @@ class Restreamer {
 
 		for (let i = 0; i < val.length; i++) {
 			val[i] = this._sanitizeProcess(val[i]);
+		}
+
+		return val;
+	}
+
+	async _loginFb(id, body) {
+		const [, err] = await this._call(this.api.LoginFb, id, body);
+
+		if (err !== null) {
+			return Promise.reject(err);
+		}
+
+		return Promise.resolve(true);
+	}
+
+	async _logoutFb(id) {
+		const [, err] = await this._call(this.api.LogoutFb, id);
+
+		if (err !== null) {
+			return false;
+		}
+
+		return true;
+	}
+
+	async _getFbAccountInfo(id) {
+		const [val, err] = await this._call(this.api.GetFbAccountInfo, id);
+		
+		if (err !== null) {
+			if ((err?.details) || [].includes('fb_err_190')) {
+				window.location.reload();
+
+				return err;
+			}
+
+			return err;
+		}
+
+		return val;
+	}
+
+	async _createFbLiveStream(id, pageId, body) {
+		const [val, err] = await this._call(this.api.CreateFbLiveStream, id, pageId, body);
+		
+		if (err !== null) {
+			return Promise.reject(err);
+		}
+
+		return val;
+	}
+
+	async _createFbLiveStreamOnMyTimeline(id, body) {
+		const [val, err] = await this._call(this.api.CreateFbLiveStreamOnMyTimeline, id, body);
+		
+		if (err !== null) {
+			return Promise.reject(err);
+		}
+
+		return val;
+	}
+
+	async _getFBMePicture(id) {
+		const [val, err] = await this._call(this.api.GetFBMePicture, id);
+		
+		if (err !== null) {
+			return Promise.reject(err);
+		}
+
+		return val;
+	}
+
+	async _checkAuthFb(id) {
+		const [val, err] = await this._call(this.api.CheckAuthFB, id);
+		
+		if (err !== null) {
+			// if (err?.details?.includes('fb_err_190')) {
+			// 	window.location.reload();
+			// }
+
+			return { is_authenticated: false, user_id: null };
 		}
 
 		return val;

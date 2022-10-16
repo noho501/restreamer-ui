@@ -83,6 +83,7 @@ export default function Edit(props) {
 	const [$saving, setSaving] = React.useState(false);
 	const [$service, setService] = React.useState(null);
 	const [$serviceSkills, setServiceSkills] = React.useState(null);
+	const [serviceAuthenticated, setServiceAuthenticated] = React.useState(false);
 
 	useInterval(async () => {
 		await update(false);
@@ -128,11 +129,14 @@ export default function Edit(props) {
 			setServiceSkills(serviceSkills);
 
 			const ingest = await props.restreamer.GetIngestMetadata(_channelid);
+
 			setMetadata({
 				...$metadata,
 				name: ingest.meta.name,
 				description: ingest.meta.description,
 				license: ingest.license,
+				liveTitle: ingest.title,
+				liveDescription: ingest.description,
 			});
 
 			const localSources = [];
@@ -145,6 +149,12 @@ export default function Edit(props) {
 
 			if (ingest.control.srt.enable) {
 				localSources.push('srt');
+			}
+
+			if (s?.id === 'facebook' && props.restreamer.CheckAuthFb) {
+				const fbAuthStatus = await props.restreamer.CheckAuthFb(_channelid).catch(() => ({ is_authenticated: false }));
+
+				setServiceAuthenticated(!!fbAuthStatus?.is_authenticated);
 			}
 
 			setLocalSources(localSources);
@@ -361,6 +371,18 @@ export default function Edit(props) {
 		});
 	};
 
+	const handleCbLogin = (serviceId, name, token) => {
+		return props.restreamer.CallbackLogin(serviceId, name, token).then(() => {
+			navigate(`/${_channelid}`);
+		});
+	};
+
+	const handleCbLogout = (serviceId, name) => {
+		return props.restreamer.CallbackLogout(serviceId, name).then(() => {
+			navigate(`/${_channelid}`);
+		});
+	};
+
 	if ($ready === false) {
 		return null;
 	}
@@ -395,21 +417,46 @@ export default function Edit(props) {
 							<Tab className="tab" label={<Trans>Process control</Trans>} value="process" />
 						</Tabs>
 						<TabPanel value={$tab} index="general" className="panel">
-							<TabContent service={$service}>
-								<Grid item xs={12} sx={{ margin: '1em 0em 1em 0em' }}>
-									<Typography>{$service.description}</Typography>
-								</Grid>
+							<TabContent
+								service={$service}
+								cbLogin={handleCbLogin}
+								cbLogout={handleCbLogout}
+								setAuthenticated={setServiceAuthenticated}
+								authenticated={serviceAuthenticated}
+							>
+								{!serviceAuthenticated && (
+									<>
+										<Grid item xs={12} sx={{ margin: '1em 0em 1em 0em' }}>
+											<Typography>{$service.description}</Typography>
+										</Grid>
+										<Grid item xs={12}>
+											<TextField
+												variant="outlined"
+												fullWidth
+												label={<Trans>Service name</Trans>}
+												value={$settings.name}
+												onChange={handleServiceName}
+											/>
+										</Grid>
+									</>
+								)}
+
 								<Grid item xs={12}>
-									<TextField
-										variant="outlined"
-										fullWidth
-										label={<Trans>Service name</Trans>}
-										value={$settings.name}
-										onChange={handleServiceName}
+									<ServiceControl
+										screen={serviceAuthenticated ? 'event' : 'list'}
+										authenticated={serviceAuthenticated}
+										settings={$settings.settings}
+										skills={$serviceSkills}
+										metadata={$metadata}
+										onChange={handleServiceChange}
+										eventMeta={{
+											title: $settings.title,
+											description: $settings.description,
+											name: $settings.profile_name,
+											image: $settings.profile_image,
+										}}
+										type="edit"
 									/>
-								</Grid>
-								<Grid item xs={12}>
-									<ServiceControl settings={$settings.settings} skills={$serviceSkills} metadata={$metadata} onChange={handleServiceChange} />
 								</Grid>
 							</TabContent>
 						</TabPanel>
@@ -529,9 +576,11 @@ export default function Edit(props) {
 					}
 					buttonsRight={
 						<React.Fragment>
-							<Button variant="outlined" color="primary" disabled={$unsavedChanges === false || $saving === true} onClick={handleServiceDone}>
-								<Trans>Save</Trans>
-							</Button>
+							{$service.id !== 'facebook' && !serviceAuthenticated && (
+								<Button variant="outlined" color="primary" disabled={$unsavedChanges === false || $saving === true} onClick={handleServiceDone}>
+									<Trans>Save</Trans>
+								</Button>
+							)}
 							<Button variant="outlined" color="secondary" disabled={$saving === true} onClick={handleServiceDeleteDialog}>
 								<Trans>Delete</Trans>
 							</Button>
