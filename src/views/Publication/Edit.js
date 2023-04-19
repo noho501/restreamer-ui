@@ -84,6 +84,7 @@ export default function Edit(props) {
 	const [$service, setService] = React.useState(null);
 	const [$serviceSkills, setServiceSkills] = React.useState(null);
 	const [serviceAuthenticated, setServiceAuthenticated] = React.useState(false);
+	const [$invalid, setInvalid] = React.useState('');
 
 	useInterval(async () => {
 		await update(false);
@@ -96,17 +97,23 @@ export default function Edit(props) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
+	React.useEffect(() => {
+		if ($invalid.length !== 0) {
+			navigate($invalid, { replace: true });
+		}
+	}, [navigate, $invalid]);
+
 	const update = async (isFirst) => {
 		const channelid = props.restreamer.SelectChannel(_channelid);
 		if (channelid === '' || channelid !== _channelid) {
-			navigate('/', { replace: true });
+			setInvalid('/');
 			return;
 		}
 
 		const proc = await props.restreamer.GetEgress(_channelid, id, ['state']);
 		if (proc === null) {
 			notify.Dispatch('warning', 'notfound:egress:' + _service, i18n._(t`Publication service not found`));
-			navigate(`/${_channelid}`);
+			setInvalid(`/${_channelid}`);
 			return;
 		}
 
@@ -116,7 +123,7 @@ export default function Edit(props) {
 			const s = Services.Get(_service);
 			if (s === null) {
 				notify.Dispatch('warning', 'notfound:egress:' + _service, i18n._(t`Publication service not found`));
-				navigate(`/${_channelid}/`);
+				setInvalid(`/${_channelid}/`);
 				return null;
 			}
 
@@ -165,8 +172,8 @@ export default function Edit(props) {
 			const settings = await props.restreamer.GetEgressMetadata(_channelid, id);
 
 			const profiles = settings.profiles;
-			profiles[0].video = helper.preselectProfile(profiles[0].video, 'video', ingest.streams, serviceSkills.codecs.video, skills.encoders.video);
-			profiles[0].audio = helper.preselectProfile(profiles[0].audio, 'audio', ingest.streams, serviceSkills.codecs.audio, skills.encoders.audio);
+			profiles[0].video = helper.preselectProfile(profiles[0].video, 'video', ingest.streams, serviceSkills.codecs.video, skills);
+			profiles[0].audio = helper.preselectProfile(profiles[0].audio, 'audio', ingest.streams, serviceSkills.codecs.audio, skills);
 
 			settings.profiles = profiles;
 			settings.streams = M.createOutputStreams(sources, profiles);
@@ -387,12 +394,6 @@ export default function Edit(props) {
 		return null;
 	}
 
-	const channelid = props.restreamer.SelectChannel(_channelid);
-	if (channelid === '' || channelid !== _channelid) {
-		navigate('/', { replace: true });
-		return null;
-	}
-
 	const ServiceControl = $service.component;
 
 	const title = $settings.name.length === 0 ? $service.name : $settings.name;
@@ -543,8 +544,7 @@ export default function Edit(props) {
 										streams={$sources[0].streams}
 										profile={$settings.profiles[0].video}
 										codecs={$serviceSkills.codecs.video}
-										availableEncoders={$skills.encoders.video}
-										availableDecoders={$skills.decoders.video}
+										skills={$skills}
 										onChange={handleEncoding('video')}
 									/>
 								</Grid>
@@ -559,8 +559,7 @@ export default function Edit(props) {
 										streams={$sources[0].streams}
 										profile={$settings.profiles[0].audio}
 										codecs={$serviceSkills.codecs.audio}
-										availableEncoders={$skills.encoders.audio}
-										availableDecoders={$skills.decoders.audio}
+										skills={$skills}
 										onChange={handleEncoding('audio')}
 									/>
 								</Grid>

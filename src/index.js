@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 
 import { ThemeProvider, StyledEngineProvider } from '@mui/material/styles';
 import '@fontsource/dosis';
@@ -12,7 +12,9 @@ import theme from './theme';
 import RestreamerUI from './RestreamerUI';
 
 let address = window.location.protocol + '//' + window.location.host;
-// let address = 'http://127.0.0.1:8080';
+if (window.location.pathname.endsWith('/ui/')) {
+	address += window.location.pathname.replace(/ui\/$/, '');
+}
 
 const urlParams = new URLSearchParams(window.location.search.substring(1));
 if (urlParams.has('address') === true) {
