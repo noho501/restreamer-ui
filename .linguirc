@@ -14,12 +14,17 @@
    "sourceLocale": "en",
    "locales": [
       "en",
+      "da",
       "de",
+      "el",
+      "es",
       "fr",
       "it",
+      "ko",
       "pl",
       "pt",
-      "es",
-      "ru"
+      "ru",
+      "sl",
+      "tr"
    ]
 }
