@@ -52,6 +52,17 @@ export default function TabContent(props) {
 				<Divider />
 			</Grid>
 			{props.children}
+			<Grid item xs={12}>
+				<Divider />
+			</Grid>
+			<Grid item xs={12}>
+				<Typography>
+					<Trans>Maintainer:</Trans>{' '}
+					<Link color="secondary" target="_blank" href={props.service.author.maintainer.link}>
+						{props.service.author.maintainer.name}
+					</Link>
+				</Typography>
+			</Grid>
 		</Grid>
 	);
 }

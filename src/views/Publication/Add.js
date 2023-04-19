@@ -53,6 +53,7 @@ export default function Add(props) {
 	const classes = useStyles();
 	const { i18n } = useLingui();
 	const navigate = useNavigate();
+	const [$ready, setReady] = React.useState(false);
 	const { channelid: _channelid } = useParams();
 	const notify = React.useContext(NotifyContext);
 	const [$service, setService] = React.useState('');
@@ -69,6 +70,7 @@ export default function Add(props) {
 	});
 	const [$saving, setSaving] = React.useState(false);
 	const [serviceAuthenticated, setServiceAuthenticated] = React.useState(false);
+	const [$invalid, setInvalid] = React.useState(false);
 
 	React.useEffect(() => {
 		(async () => {
@@ -77,10 +79,16 @@ export default function Add(props) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
+	React.useEffect(() => {
+		if ($invalid === true) {
+			navigate('/', { replace: true });
+		}
+	}, [navigate, $invalid]);
+
 	const load = async () => {
 		const channelid = props.restreamer.SelectChannel(_channelid);
 		if (channelid === '' || channelid !== _channelid) {
-			navigate('/', { replace: true });
+			setInvalid(true);
 			return;
 		}
 
@@ -110,6 +118,8 @@ export default function Add(props) {
 		setLocalSources(localSources);
 
 		setSources(helper.createSourcesFromStreams(ingest.streams));
+
+		setReady(true);
 	};
 
 	const handleFilterChange = (event, value) => {
@@ -130,8 +140,8 @@ export default function Add(props) {
 			const serviceSkills = helper.conflateServiceSkills(s.requires, $skills);
 
 			const profiles = $settings.profiles;
-			profiles[0].video = helper.preselectProfile(profiles[0].video, 'video', $sources[0].streams, serviceSkills.codecs.video, $skills.encoders.video);
-			profiles[0].audio = helper.preselectProfile(profiles[0].audio, 'audio', $sources[0].streams, serviceSkills.codecs.audio, $skills.encoders.audio);
+			profiles[0].video = helper.preselectProfile(profiles[0].video, 'video', $sources[0].streams, serviceSkills.codecs.video, $skills);
+			profiles[0].audio = helper.preselectProfile(profiles[0].audio, 'audio', $sources[0].streams, serviceSkills.codecs.audio, $skills);
 
 			setSettings({
 				...$settings,
@@ -182,7 +192,7 @@ export default function Add(props) {
 		setSaving(true);
 
 		const [global, inputs, outputs] = helper.createInputsOutputs($sources, $settings.profiles, $settings.outputs);
-		
+
 		const [id, err] = await props.restreamer.CreateEgress(_channelid, $service, global, inputs, outputs, $settings.control);
 		if (err !== null) {
 			setSaving(false);
@@ -252,6 +262,8 @@ export default function Add(props) {
 	const channelid = props.restreamer.SelectChannel(_channelid);
 	if (channelid === '' || channelid !== _channelid) {
 		navigate('/', { replace: true });
+	}
+	if ($ready === false) {
 		return null;
 	}
 
@@ -483,8 +495,7 @@ export default function Add(props) {
 												streams={$sources[0].streams}
 												profile={$settings.profiles[0].video}
 												codecs={serviceSkills.codecs.video}
-												availableEncoders={$skills.encoders.video}
-												availableDecoders={$skills.decoders.video}
+												skills={$skills}
 												onChange={handleProcessing('video')}
 											/>
 										</Grid>
@@ -499,8 +510,7 @@ export default function Add(props) {
 												streams={$sources[0].streams}
 												profile={$settings.profiles[0].audio}
 												codecs={serviceSkills.codecs.audio}
-												availableEncoders={$skills.encoders.audio}
-												availableDecoders={$skills.decoders.audio}
+												skills={$skills}
 												onChange={handleProcessing('audio')}
 											/>
 										</Grid>

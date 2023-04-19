@@ -1,4 +1,5 @@
 import React from 'react';
+import SemverSatisfies from 'semver/functions/satisfies';
 
 import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
@@ -7,6 +8,7 @@ import { Trans } from '@lingui/macro';
 
 import Select from '../../../Select';
 import Video from '../../settings/Video';
+import Helper from '../../helper';
 
 function init(initialState) {
 	const state = {
@@ -16,13 +18,22 @@ function init(initialState) {
 		gop: '2',
 		profile: 'auto',
 		tune: 'zerolatency',
+		fps_mode: 'auto',
 		...initialState,
 	};
 
 	return state;
 }
 
-function createMapping(settings) {
+function createMapping(settings, stream, skills) {
+	stream = Helper.InitStream(stream);
+	skills = Helper.InitSkills(skills);
+
+	let ffversion = 4;
+	if (SemverSatisfies(skills.ffmpeg.version, '^5.0.0')) {
+		ffversion = 5;
+	}
+
 	const local = [
 		'-codec:v',
 		'libx265',
@@ -49,6 +60,10 @@ function createMapping(settings) {
 			'-keyint_min',
 			`${Math.round(parseInt(settings.fps) * parseInt(settings.gop)).toFixed(0)}`
 		);
+	}
+
+	if (ffversion === 5) {
+		local.push('-fps_mode', `${settings.fps_mode}`);
 	}
 
 	if (settings.profile !== 'auto') {
@@ -109,6 +124,13 @@ Tune.defaultProps = {
 
 function Coder(props) {
 	const settings = init(props.settings);
+	const stream = Helper.InitStream(props.stream);
+	const skills = Helper.InitSkills(props.skills);
+
+	let ffversion = 4;
+	if (SemverSatisfies(skills.ffmpeg.version, '^5.0.0')) {
+		ffversion = 5;
+	}
 
 	const handleChange = (newSettings) => {
 		let automatic = false;
@@ -117,7 +139,7 @@ function Coder(props) {
 			automatic = true;
 		}
 
-		props.onChange(newSettings, createMapping(newSettings), automatic);
+		props.onChange(newSettings, createMapping(newSettings, stream, skills), automatic);
 	};
 
 	const update = (what) => (event) => {
@@ -139,12 +161,17 @@ function Coder(props) {
 			<Grid item xs={12}>
 				<Video.Bitrate value={settings.bitrate} onChange={update('bitrate')} allowCustom />
 			</Grid>
-			<Grid item xs={12}>
+			<Grid item xs={12} md={6}>
 				<Video.Framerate value={settings.fps} onChange={update('fps')} allowCustom />
 			</Grid>
-			<Grid item xs={12}>
+			<Grid item xs={12} md={6}>
 				<Video.GOP value={settings.gop} onChange={update('gop')} allowAuto allowCustom />
 			</Grid>
+			{ffversion === 5 && (
+				<Grid item xs={12}>
+					<Video.FpsMode value={settings.fps_mode} onChange={update('fps_mode')} />
+				</Grid>
+			)}
 			<Grid item xs={6}>
 				<Preset value={settings.preset} onChange={update('preset')} />
 			</Grid>
@@ -161,6 +188,7 @@ function Coder(props) {
 Coder.defaultProps = {
 	stream: {},
 	settings: {},
+	skills: {},
 	onChange: function (settings, mapping) {},
 };
 
@@ -174,12 +202,12 @@ function summarize(settings) {
 	return `${name}, ${settings.bitrate} kbit/s, ${settings.fps} FPS, Preset: ${settings.preset}, Profile: ${settings.profile}`;
 }
 
-function defaults() {
+function defaults(stream, skills) {
 	const settings = init({});
 
 	return {
 		settings: settings,
-		mapping: createMapping(settings),
+		mapping: createMapping(settings, stream, skills),
 	};
 }
 
