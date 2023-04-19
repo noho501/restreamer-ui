@@ -1,8 +1,12 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+
+import { Trans } from '@lingui/macro';
+
 import makeStyles from '@mui/styles/makeStyles';
 import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
