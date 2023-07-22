@@ -23,7 +23,7 @@ const useStyles = makeStyles((theme) => ({
 	},
 	comment: {
 		fontSize: '1rem',
-		margin: 0;
+		margin: 0,
 	},
 	commentUser: {
 		fontSize: '1rem',
