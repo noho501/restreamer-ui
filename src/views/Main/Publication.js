@@ -159,12 +159,10 @@ export default function Publication(props) {
 			const isLogged = await isLoggedIn();
 			if (!isLogged || !props.restreamer.currentFbInfo?.accounts) {
 				const response = await login();
-				console.log('🚀 ~ file: Publication.js:163 ~ response:', response);
 				props.restreamer.SetFBInfo(response);
 			}
 			const accessToken = props.restreamer.GetFbAccountAccessToken(profileId);
 			const currentComment = $comments[socialLiveVideoId] || [];
-			console.log('🚀 ~ file: Publication.js:168 ~ currentComment:', currentComment);
 			const previousLastComments = currentComment.at(-1);
 			const result = await getLiveComment(socialLiveVideoId, accessToken, previousLastComments?.created_time);
 			const { data: _comments } = result;
