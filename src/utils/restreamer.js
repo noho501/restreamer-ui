@@ -2751,7 +2751,6 @@ class Restreamer {
 	}
 
 	GetFbAccountAccessToken(pageId) {
-		console.log('🚀 ~ file: restreamer.js:2754 ~ Restreamer ~ getFbAccountAccessToken ~ this.accounts[pageId]:', this.currentFbInfo);
 		return this.currentFbInfo?.accounts[pageId]?.access_token;
 	}
 
