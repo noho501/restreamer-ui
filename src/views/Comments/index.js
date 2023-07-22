@@ -23,6 +23,7 @@ const useStyles = makeStyles((theme) => ({
 	},
 	comment: {
 		fontSize: '1rem',
+		margin: 0;
 	},
 	commentUser: {
 		fontSize: '1rem',
@@ -51,9 +52,7 @@ const Comment = ({ message, from: { name } = { name: '' }, picture }) => {
 			<Grid item xs={12}>
 				<Divider />
 				<Grid container direction="column" className={classes.boxComment} gap="4px" marginBottom="16px">
-					<Typography className={classes.comment}>
-						<Trans>{message}</Trans>
-					</Typography>
+					<p className={classes.comment}>{message}</p>
 					<Grid container direction="row" gap="4px">
 						<Avatar src={picture} variant="square" sx={{ width: 24, height: 24 }} />
 						<span className={classes.userComment}>{name}</span>
