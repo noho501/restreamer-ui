@@ -18,7 +18,7 @@ import PaperHeader from '../../misc/PaperHeader';
 import Services from '../Publication/Services';
 
 import { getLiveComment, isLoggedIn, login } from '../../services/facebook';
-import { Avatar } from '@mui/material';
+import Comments from '../Comments';
 
 const useStyles = makeStyles((theme) => ({
 	viewerCount: {
@@ -181,6 +181,7 @@ export default function Publication(props) {
 	};
 
 	let egresses = [];
+	const displayComments = Object.values($comments).filter((items) => items.length);
 
 	for (let e of $egresses.values()) {
 		egresses.push(
@@ -238,29 +239,9 @@ export default function Publication(props) {
 				</Grid>
 			</Paper>
 
-			{Object.values($comments)
-				.filter((items) => items.length)
-				.map((items, idx) => (
-					<Paper marginBottom="0" key={idx}>
-						<PaperHeader title={<Trans>Comments</Trans>} />
-						{items.map(({ message, from: { name } = { name: '' }, picture, id }) => (
-							<Grid container spacing={1} key={id}>
-								<Grid item xs={12}>
-									<Divider />
-									<Grid container direction="column" className={classes.boxComment} gap="4px" marginBottom="16px">
-										<Typography className={classes.comment}>
-											<Trans>{message}</Trans>
-										</Typography>
-										<Grid container direction="row" gap="4px">
-											<Avatar src={picture} variant="square" sx={{ width: 24, height: 24 }} />
-											<span className={classes.userComment}>{name}</span>
-										</Grid>
-									</Grid>
-								</Grid>
-							</Grid>
-						))}
-					</Paper>
-				))}
+			{displayComments.map((comments, idx) => (
+				<Comments comments={comments} key={idx} />
+			))}
 		</React.Fragment>
 	);
 }
