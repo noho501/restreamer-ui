@@ -17,6 +17,9 @@ import Paper from '../../misc/Paper';
 import PaperHeader from '../../misc/PaperHeader';
 import Services from '../Publication/Services';
 
+import { getLiveComment, isLoggedIn, login } from '../../services/facebook';
+import { Avatar } from '@mui/material';
+
 const useStyles = makeStyles((theme) => ({
 	viewerCount: {
 		fontSize: '3.5rem',
@@ -27,6 +30,12 @@ const useStyles = makeStyles((theme) => ({
 	},
 	vierwerTypo: {
 		fontSize: '1.1rem',
+	},
+	comment: {
+		fontSize: '1rem',
+	},
+	commentUser: {
+		fontSize: '1rem',
 	},
 	bandwidth: {
 		marginBottom: '.3em',
@@ -50,6 +59,7 @@ export default function Publication(props) {
 	const navigate = useNavigate();
 	const services = Services.IDs();
 	const [$egresses, setEgresses] = React.useState([]);
+	const [$comments, setComments] = React.useState({});
 	const [$session, setSession] = React.useState({
 		viewer: 0,
 		bandwidth: 0,
@@ -82,6 +92,8 @@ export default function Publication(props) {
 				service: p.service,
 				index: p.index,
 				progress: p.progress,
+				socialLiveVideoId: p.socialLiveVideoId,
+				profileId: p.profileId,
 			});
 		}
 
@@ -130,6 +142,42 @@ export default function Publication(props) {
 		return res;
 	};
 
+	const handleFetchComments =
+		(socialLiveVideoId, profileId) =>
+		async (reset = false) => {
+			if (!socialLiveVideoId || !profileId) {
+				return;
+			}
+
+			if (reset) {
+				setComments({
+					...$comments,
+					[socialLiveVideoId]: [],
+				});
+				return;
+			}
+			const isLogged = await isLoggedIn();
+			if (!isLogged || !props.restreamer.currentFbInfo?.accounts) {
+				const response = await login();
+				console.log('🚀 ~ file: Publication.js:163 ~ response:', response);
+				props.restreamer.SetFBInfo(response);
+			}
+			const accessToken = props.restreamer.GetFbAccountAccessToken(profileId);
+			const currentComment = $comments[socialLiveVideoId] || [];
+			console.log('🚀 ~ file: Publication.js:168 ~ currentComment:', currentComment);
+			const previousLastComments = currentComment.at(-1);
+			const result = await getLiveComment(socialLiveVideoId, accessToken, previousLastComments?.created_time);
+			const { data: _comments } = result;
+			const comments = _comments.map((item) => ({
+				...item,
+				picture: item.from?.picture?.data?.url || '',
+			}));
+			setComments({
+				...$comments,
+				[socialLiveVideoId]: [...currentComment, ...comments],
+			});
+		};
+
 	const handleHelp = () => {
 		H('publication');
 	};
@@ -148,9 +196,12 @@ export default function Publication(props) {
 						name={e.name}
 						state={e.progress.state}
 						order={e.progress.order}
+						socialLiveVideoId={e.socialLiveVideoId}
+						comments={$comments[e.socialLiveVideoId]}
 						reconnect={e.progress.reconnect !== -1}
 						onEdit={handleServiceEdit(e.service, e.index)}
 						onOrder={handleOrderChange(e.id)}
+						onFetchComment={handleFetchComments(e.socialLiveVideoId, e.profileId)}
 					/>
 				</Grid>
 			</React.Fragment>
@@ -159,7 +210,7 @@ export default function Publication(props) {
 
 	return (
 		<React.Fragment>
-			<Paper marginBottom="0">
+			<Paper marginBottom="12px">
 				<PaperHeader title={<Trans>Publications</Trans>} onAdd={handleServiceAdd} onHelp={handleHelp} />
 				<Grid container spacing={1}>
 					<Grid item xs={12} align="center">
@@ -188,6 +239,30 @@ export default function Publication(props) {
 					{egresses}
 				</Grid>
 			</Paper>
+
+			{Object.values($comments)
+				.filter((items) => items.length)
+				.map((items, idx) => (
+					<Paper marginBottom="0" key={idx}>
+						<PaperHeader title={<Trans>Comments</Trans>} />
+						{items.map(({ message, from: { name } = { name: '' }, picture, id }) => (
+							<Grid container spacing={1} key={id}>
+								<Grid item xs={12}>
+									<Divider />
+									<Grid container direction="column" className={classes.boxComment} gap="4px" marginBottom="16px">
+										<Typography className={classes.comment}>
+											<Trans>{message}</Trans>
+										</Typography>
+										<Grid container direction="row" gap="4px">
+											<Avatar src={picture} variant="square" sx={{ width: 24, height: 24 }} />
+											<span className={classes.userComment}>{name}</span>
+										</Grid>
+									</Grid>
+								</Grid>
+							</Grid>
+						))}
+					</Paper>
+				))}
 		</React.Fragment>
 	);
 }

@@ -77,7 +77,7 @@ const ServiceLoginButton = ({ cbLogin, cbLogout, setAuthenticated, authenticated
 		onLoginFacebook()
 			.then(async (res) => {
 				if (cbLogin) {
-					await cbLogin(id, channelid, { oauth_fb_access_token: res?.accessToken, oauth_fb_user_id: res?.userId });
+					await cbLogin(id, channelid, { oauth_fb_access_token: res?.accessToken, oauth_fb_user_id: res?.userId, accounts: res?.accounts });
 				}
 
 				setAuthenticated(true);
@@ -232,6 +232,7 @@ function Service(props) {
 		const streamKeySplit = String(live?.secure_stream_url).split('/');
 
 		settings.stream_key_primary = streamKeySplit[streamKeySplit.length - 1];
+		const socialLiveVideoId = settings.stream_key_primary.split('?')[0] || '';
 
 		const outputs = [];
 
@@ -244,7 +245,13 @@ function Service(props) {
 			outputs.push(output_primary);
 		}
 
-		props.onChange(outputs, settings, { ...eventMeta, profile_name: pageSelected?.name, profile_image: pageSelected?.image });
+		props.onChange(outputs, settings, {
+			...eventMeta,
+			profile_name: pageSelected?.name,
+			profile_image: pageSelected?.image,
+			profile_id: pageSelected?.id,
+			social_live_video_id: socialLiveVideoId,
+		});
 	};
 
 	const handleBackCreateLivestream = () => {

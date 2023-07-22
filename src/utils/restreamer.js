@@ -57,6 +57,7 @@ class Restreamer {
 		this.updates = null;
 		this.hasUpdates = false;
 		this.hasService = false;
+		this.currentFbInfo = {};
 
 		this._checkForUpdates();
 	}
@@ -1107,6 +1108,8 @@ class Restreamer {
 					index: index,
 					channelid: p.reference,
 					name: p.metadata.name,
+					profileId: p.metadata.profile_id,
+					socialLiveVideoId: p.metadata.social_live_video_id,
 				});
 
 				egresses.set(channelid, egressList);
@@ -1180,6 +1183,10 @@ class Restreamer {
 			delete metadata.imported;
 			await this.SetIngestMetadata(channelid, metadata);
 		}
+	}
+
+	_getSocialLiveVideoId({ service, streamKeyPrimary }) {
+		return service === 'facebook' && streamKeyPrimary ? streamKeyPrimary.split('?')[0] : '';
 	}
 
 	CreateChannel(name) {
@@ -1301,6 +1308,8 @@ class Restreamer {
 			index: egress.index,
 			channelid: egress.channelid,
 			name: egress.name,
+			socialLiveVideoId: egress.socialLiveVideoId,
+			profileId: egress.profileId,
 		};
 	}
 
@@ -2604,7 +2613,7 @@ class Restreamer {
 	}
 
 	// Create an egress process
-	async CreateEgress(channelid, service, global, inputs, outputs, control) {
+	async CreateEgress(channelid, service, global, inputs, outputs, control, metadata) {
 		const channel = this.GetChannel(channelid);
 		if (!channel) {
 			return ['', { message: 'Unknown channel ID' }];
@@ -2617,6 +2626,8 @@ class Restreamer {
 			service: service,
 			channelid: channel.channelid,
 			name: '',
+			socialLiveVideoId: metadata.social_live_video_id,
+			profileId: metadata.profile_id,
 		};
 
 		this.SetChannelEgress(channelid, egress.id, egress);
@@ -2660,6 +2671,8 @@ class Restreamer {
 				p.service = egress.service;
 				p.index = egress.index;
 				p.name = egress.name;
+				p.socialLiveVideoId = egress.socialLiveVideoId;
+				p.profileId = egress.profileId;
 
 				return true;
 			}
@@ -2705,7 +2718,9 @@ class Restreamer {
 
 	CallbackLogin(serviceId, name, body) {
 		if (serviceId === 'facebook') {
-			return this._loginFb(name, body);
+			const { accounts = [], ..._body } = body;
+			this.SetFBInfo(body);
+			return this._loginFb(name, _body);
 		}
 
 		return Promise.resolve(true);
@@ -2713,10 +2728,31 @@ class Restreamer {
 
 	CallbackLogout(serviceId, name) {
 		if (serviceId === 'facebook') {
-			return this._logoutFb(name)
+			return this._logoutFb(name);
 		}
 
 		return Promise.resolve(true);
+	}
+
+	SetFBInfo(fbInfo) {
+		const { accounts = [] } = fbInfo;
+
+		this.currentFbInfo = {
+			...this.currentDbInfo,
+			...fbInfo,
+			accounts: accounts.reduce(
+				(prev, account) => ({
+					...prev,
+					[account.id]: account,
+				}),
+				{}
+			),
+		};
+	}
+
+	GetFbAccountAccessToken(pageId) {
+		console.log('🚀 ~ file: restreamer.js:2754 ~ Restreamer ~ getFbAccountAccessToken ~ this.accounts[pageId]:', this.currentFbInfo);
+		return this.currentFbInfo?.accounts[pageId]?.access_token;
 	}
 
 	async GetDebug(processid) {
@@ -2927,9 +2963,9 @@ class Restreamer {
 
 	async _getFbAccountInfo(id) {
 		const [val, err] = await this._call(this.api.GetFbAccountInfo, id);
-		
+
 		if (err !== null) {
-			if ((err?.details) || [].includes('fb_err_190')) {
+			if (err?.details || [].includes('fb_err_190')) {
 				window.location.reload();
 
 				return err;
@@ -2943,7 +2979,7 @@ class Restreamer {
 
 	async _createFbLiveStream(id, pageId, body) {
 		const [val, err] = await this._call(this.api.CreateFbLiveStream, id, pageId, body);
-		
+
 		if (err !== null) {
 			return Promise.reject(err);
 		}
@@ -2953,7 +2989,7 @@ class Restreamer {
 
 	async _createFbLiveStreamOnMyTimeline(id, body) {
 		const [val, err] = await this._call(this.api.CreateFbLiveStreamOnMyTimeline, id, body);
-		
+
 		if (err !== null) {
 			return Promise.reject(err);
 		}
@@ -2963,7 +2999,7 @@ class Restreamer {
 
 	async _getFBMePicture(id) {
 		const [val, err] = await this._call(this.api.GetFBMePicture, id);
-		
+
 		if (err !== null) {
 			return Promise.reject(err);
 		}
@@ -2973,7 +3009,7 @@ class Restreamer {
 
 	async _checkAuthFb(id) {
 		const [val, err] = await this._call(this.api.CheckAuthFB, id);
-		
+
 		if (err !== null) {
 			// if (err?.details?.includes('fb_err_190')) {
 			// 	window.location.reload();
