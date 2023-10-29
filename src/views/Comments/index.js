@@ -4,7 +4,6 @@ import { Trans } from '@lingui/macro';
 import makeStyles from '@mui/styles/makeStyles';
 import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
-import Typography from '@mui/material/Typography';
 import { Avatar } from '@mui/material';
 
 import Paper from '../../misc/Paper';

@@ -17,8 +17,9 @@ import Paper from '../../misc/Paper';
 import PaperHeader from '../../misc/PaperHeader';
 import Services from '../Publication/Services';
 
-import { getLiveComment, isLoggedIn, login } from '../../services/facebook';
+import { getLiveComment, getLiveReactions, isLoggedIn, login } from '../../services/facebook';
 import Comments from '../Comments';
+import CommentStatistic from '../Comments/Statistic';
 
 const useStyles = makeStyles((theme) => ({
 	viewerCount: {
@@ -60,6 +61,10 @@ export default function Publication(props) {
 	const services = Services.IDs();
 	const [$egresses, setEgresses] = React.useState([]);
 	const [$comments, setComments] = React.useState({});
+	const [$reactionStatistic, setReactionStatistic] = React.useState({
+		likes: 0,
+		comments: 0,
+	})
 	const [$session, setSession] = React.useState({
 		viewer: 0,
 		bandwidth: 0,
@@ -164,8 +169,11 @@ export default function Publication(props) {
 			const accessToken = props.restreamer.GetFbAccountAccessToken(profileId);
 			const currentComment = $comments[socialLiveVideoId] || [];
 			const previousLastComments = currentComment.at(-1);
-			const result = await getLiveComment(socialLiveVideoId, accessToken, previousLastComments?.created_time);
-			const { data: _comments } = result;
+			const previousLastCommentTimestamp = previousLastComments ? Math.floor(new Date(previousLastComments.created_time).getTime() / 1000) + 1 : 0;
+			const result = await getLiveComment(socialLiveVideoId, accessToken, previousLastCommentTimestamp);
+			const reactions = await getLiveReactions(socialLiveVideoId, accessToken);
+			const { data: _comments, summary } = result;
+			const { summary: reactionSummary } = reactions;
 			const comments = _comments.map((item) => ({
 				...item,
 				picture: item.from?.picture?.data?.url || '',
@@ -174,6 +182,11 @@ export default function Publication(props) {
 				...$comments,
 				[socialLiveVideoId]: [...currentComment, ...comments],
 			});
+			setReactionStatistic(_prev => ({
+				..._prev,
+				comments: summary?.total_count || 0,
+				likes: reactionSummary?.total_count || 0,
+			}))
 		};
 
 	const handleHelp = () => {
@@ -238,6 +251,8 @@ export default function Publication(props) {
 					{egresses}
 				</Grid>
 			</Paper>
+
+			<CommentStatistic statistics={$reactionStatistic} />
 
 			{displayComments.map((comments, idx) => (
 				<Comments comments={comments} key={idx} />
