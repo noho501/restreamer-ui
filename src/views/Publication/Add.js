@@ -193,7 +193,7 @@ export default function Add(props) {
 
 		const [global, inputs, outputs] = helper.createInputsOutputs($sources, $settings.profiles, $settings.outputs);
 
-		const [id, err] = await props.restreamer.CreateEgress(_channelid, $service, global, inputs, outputs, $settings.control);
+		const [id, err] = await props.restreamer.CreateEgress(_channelid, $service, global, inputs, outputs, $settings.control, $settings);
 		if (err !== null) {
 			setSaving(false);
 			notify.Dispatch('error', 'save:egress:' + $service, i18n._(t`Failed to create publication service (${err.message})`));
@@ -392,7 +392,14 @@ export default function Add(props) {
 					<React.Fragment>
 						<Grid container spacing={1}>
 							<TabsVerticalGrid>
-								<Tabs sx={{ width: '30%' }} orientation="vertical" variant="scrollable" value={$tab} onChange={handleChangeTab} className="tabs">
+								<Tabs
+									sx={{ width: '30%' }}
+									orientation="vertical"
+									variant="scrollable"
+									value={$tab}
+									onChange={handleChangeTab}
+									className="tabs"
+								>
 									<Tab className="tab" label={<Trans>General</Trans>} value="general" />
 									<Tab className="tab" label={<Trans>Source &amp; Encoding</Trans>} value="encoding" />
 									<Tab className="tab" label={<Trans>Process control</Trans>} value="process" />
@@ -530,9 +537,16 @@ export default function Add(props) {
 								</React.Fragment>
 							}
 							buttonsRight={
-								!serviceAuthenticated && <Button variant="outlined" color="primary" onClick={handleServiceDone} disabled={$settings.output === null || $saving === true}>
-									<Trans>Save</Trans>
-								</Button>
+								!serviceAuthenticated && (
+									<Button
+										variant="outlined"
+										color="primary"
+										onClick={handleServiceDone}
+										disabled={$settings.output === null || $saving === true}
+									>
+										<Trans>Save</Trans>
+									</Button>
+								)
 							}
 						/>
 					</React.Fragment>

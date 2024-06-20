@@ -2,17 +2,21 @@ export const login = () =>
 	new Promise(async (rs, rj) => {
 		window.FB.getLoginStatus(function (response) {
 			if (response.status === 'connected') {
-				rs({ userId: response.authResponse.userID, accessToken: response.authResponse.accessToken });
+				getAccountInfo().then(({ data: accounts }) =>
+					rs({ userId: response.authResponse.userID, accessToken: response.authResponse.accessToken, accounts })
+				);
 			} else {
 				window.FB.login(
 					function (res) {
 						if (res?.authResponse?.accessToken) {
-							rs({ userId: res.authResponse.userID, accessToken: res.authResponse.accessToken });
+							getAccountInfo().then(({ data: accounts }) =>
+								rs({ userId: res.authResponse.userID, accessToken: res.authResponse.accessToken, accounts })
+							);
 						} else {
 							rj('User cancelled login');
 						}
 					},
-					{ scope: 'email,public_profile,pages_manage_posts,publish_video' }
+					{ scope: 'public_profile,pages_manage_posts,publish_video,pages_read_user_content,pages_read_engagement' }
 				);
 			}
 		}, true);
@@ -42,8 +46,45 @@ export const logout = async () =>
 export const getAccountInfo = () => {
 	return new Promise((rs, rj) => {
 		window.FB.api('/me/accounts', 'GET', { fields: 'picture,access_token,name,id' }, function (response) {
-			console.log('getAccountInfo', response);
 			rs(response);
 		});
 	});
 };
+
+export const getLoginStatus = () =>
+	new Promise(async (rs, rj) => {
+		window.FB.getLoginStatus(function (response) {
+			if (response.status === 'connected') {
+				rs({ userId: response.authResponse.userID, accessToken: response.authResponse.accessToken });
+			} else {
+				rs(null);
+			}
+		}, true);
+	});
+
+export const getLiveComment = (socialLiveVideoId, accessToken, since) =>
+	new Promise(async (rs, rj) => {
+		const query = { access_token: accessToken, summary: 1, fields: 'created_time, from{picture,name,id}, message, id' };
+		if (since) {
+			Object.assign(query, { since });
+		}
+		window.FB.api(`/${socialLiveVideoId}/comments`, 'GET', query, function (response) {
+			if (response && !response.error) {
+				rs(response);
+			} else {
+				rs({ data: [], error: response.error });
+			}
+		});
+	});
+
+export const getLiveReactions = (socialLiveVideoId, accessToken) =>
+	new Promise(async (rs, rj) => {
+		const query = { access_token: accessToken, summary: 1 };
+		window.FB.api(`/${socialLiveVideoId}/reactions`, 'GET', query, function (response) {
+			if (response && !response.error) {
+				rs(response);
+			} else {
+				rs({ data: [], error: response.error });
+			}
+		});
+	});

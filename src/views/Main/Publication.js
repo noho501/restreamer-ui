@@ -17,6 +17,10 @@ import Paper from '../../misc/Paper';
 import PaperHeader from '../../misc/PaperHeader';
 import Services from '../Publication/Services';
 
+import { getLiveComment, getLiveReactions, isLoggedIn, login } from '../../services/facebook';
+import Comments from '../Comments';
+import CommentStatistic from '../Comments/Statistic';
+
 const useStyles = makeStyles((theme) => ({
 	viewerCount: {
 		fontSize: '3.5rem',
@@ -27,6 +31,12 @@ const useStyles = makeStyles((theme) => ({
 	},
 	vierwerTypo: {
 		fontSize: '1.1rem',
+	},
+	comment: {
+		fontSize: '1rem',
+	},
+	commentUser: {
+		fontSize: '1rem',
 	},
 	bandwidth: {
 		marginBottom: '.3em',
@@ -50,6 +60,11 @@ export default function Publication(props) {
 	const navigate = useNavigate();
 	const services = Services.IDs();
 	const [$egresses, setEgresses] = React.useState([]);
+	const [$comments, setComments] = React.useState({});
+	const [$reactionStatistic, setReactionStatistic] = React.useState({
+		likes: 0,
+		comments: 0,
+	})
 	const [$session, setSession] = React.useState({
 		viewer: 0,
 		bandwidth: 0,
@@ -82,6 +97,8 @@ export default function Publication(props) {
 				service: p.service,
 				index: p.index,
 				progress: p.progress,
+				socialLiveVideoId: p.socialLiveVideoId,
+				profileId: p.profileId,
 			});
 		}
 
@@ -130,11 +147,54 @@ export default function Publication(props) {
 		return res;
 	};
 
+	const handleFetchComments =
+		(socialLiveVideoId, profileId) =>
+		async (reset = false) => {
+			if (!socialLiveVideoId || !profileId) {
+				return;
+			}
+
+			if (reset) {
+				setComments({
+					...$comments,
+					[socialLiveVideoId]: [],
+				});
+				return;
+			}
+			const isLogged = await isLoggedIn();
+			if (!isLogged || !props.restreamer.currentFbInfo?.accounts) {
+				const response = await login();
+				props.restreamer.SetFBInfo(response);
+			}
+			const accessToken = props.restreamer.GetFbAccountAccessToken(profileId);
+			const currentComment = $comments[socialLiveVideoId] || [];
+			const previousLastComments = currentComment.at(-1);
+			const previousLastCommentTimestamp = previousLastComments ? Math.floor(new Date(previousLastComments.created_time).getTime() / 1000) + 1 : 0;
+			const result = await getLiveComment(socialLiveVideoId, accessToken, previousLastCommentTimestamp);
+			const reactions = await getLiveReactions(socialLiveVideoId, accessToken);
+			const { data: _comments, summary } = result;
+			const { summary: reactionSummary } = reactions;
+			const comments = _comments.map((item) => ({
+				...item,
+				picture: item.from?.picture?.data?.url || '',
+			}));
+			setComments({
+				...$comments,
+				[socialLiveVideoId]: [...currentComment, ...comments],
+			});
+			setReactionStatistic(_prev => ({
+				..._prev,
+				comments: summary?.total_count || 0,
+				likes: reactionSummary?.total_count || 0,
+			}))
+		};
+
 	const handleHelp = () => {
 		H('publication');
 	};
 
 	let egresses = [];
+	const displayComments = Object.values($comments).filter((items) => items.length);
 
 	for (let e of $egresses.values()) {
 		egresses.push(
@@ -148,9 +208,12 @@ export default function Publication(props) {
 						name={e.name}
 						state={e.progress.state}
 						order={e.progress.order}
+						socialLiveVideoId={e.socialLiveVideoId}
+						comments={$comments[e.socialLiveVideoId]}
 						reconnect={e.progress.reconnect !== -1}
 						onEdit={handleServiceEdit(e.service, e.index)}
 						onOrder={handleOrderChange(e.id)}
+						onFetchComment={handleFetchComments(e.socialLiveVideoId, e.profileId)}
 					/>
 				</Grid>
 			</React.Fragment>
@@ -159,7 +222,7 @@ export default function Publication(props) {
 
 	return (
 		<React.Fragment>
-			<Paper marginBottom="0">
+			<Paper marginBottom="12px">
 				<PaperHeader title={<Trans>Publications</Trans>} onAdd={handleServiceAdd} onHelp={handleHelp} />
 				<Grid container spacing={1}>
 					<Grid item xs={12} align="center">
@@ -188,6 +251,12 @@ export default function Publication(props) {
 					{egresses}
 				</Grid>
 			</Paper>
+
+			<CommentStatistic statistics={$reactionStatistic} />
+
+			{displayComments.map((comments, idx) => (
+				<Comments comments={comments} key={idx} />
+			))}
 		</React.Fragment>
 	);
 }
