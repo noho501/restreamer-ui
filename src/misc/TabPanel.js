@@ -15,7 +15,8 @@ const useStyles = makeStyles((theme) => ({
 
 export default function TabPanel(props) {
 	const classes = useStyles();
-	const { children, value, index, sx, ...other } = props;
+	const { children, value, index, sx, isHide,...other } = props;
+	if (isHide) return null;
 
 	return (
 		<div className={classes.root} role="tabpanel" hidden={value !== index} id={`vertical-tabpanel-${index}`} style={sx || {}} {...other}>

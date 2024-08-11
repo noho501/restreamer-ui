@@ -11,6 +11,7 @@ import * as M from './metadata';
 import * as Storage from './storage';
 import * as Version from '../version';
 import API from './api';
+import { login } from '../services/facebook';
 
 class Restreamer {
 	constructor(address) {
@@ -2732,6 +2733,16 @@ class Restreamer {
 		}
 
 		return Promise.resolve(true);
+	}
+
+	async ReLoginFacebookInClient() {
+		try {
+			const response = await login();
+			this.SetFBInfo(response);
+			return response;
+		} catch {
+			return false;
+		}
 	}
 
 	SetFBInfo(fbInfo) {

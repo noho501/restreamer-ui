@@ -33,6 +33,7 @@ import Services from './Services';
 import TabContent from './TabContent';
 import TabPanel from '../../misc/TabPanel';
 import TabsVerticalGrid from '../../misc/TabsVerticalGrid';
+import { FacebookAds } from './Temporary/FacebookAds';
 
 const useStyles = makeStyles((theme) => ({
 	buttonAbort: {
@@ -336,6 +337,8 @@ export default function Add(props) {
 		serviceSkills = helper.conflateServiceSkills(service.requires, $skills);
 	}
 
+	const $isFacebook = $service === 'facebook';
+
 	return (
 		<React.Fragment>
 			<Paper xs={12} md={10}>
@@ -401,6 +404,9 @@ export default function Add(props) {
 									className="tabs"
 								>
 									<Tab className="tab" label={<Trans>General</Trans>} value="general" />
+									{$isFacebook && (
+										<Tab className="tab" label={<Trans>Ads Pages</Trans>} value="ads_page" />
+									)}
 									<Tab className="tab" label={<Trans>Source &amp; Encoding</Trans>} value="encoding" />
 									<Tab className="tab" label={<Trans>Process control</Trans>} value="process" />
 								</Tabs>
@@ -441,6 +447,47 @@ export default function Add(props) {
 												setAuthenticated={setServiceAuthenticated}
 												restreamer={props.restreamer}
 												onServiceDone={handleServiceDone}
+												isAdsPage
+											/>
+										</Grid>
+									</TabContent>
+								</TabPanel>
+								<TabPanel sx={{ width: '70%' }} value={$tab} index="ads_page" className="panel" isHide={!$isFacebook}>
+									<TabContent
+										service={service}
+										cbLogin={handleCbLogin}
+										cbLogout={handleCbLogout}
+										setAuthenticated={setServiceAuthenticated}
+										authenticated={serviceAuthenticated}
+									>
+										{!serviceAuthenticated && (
+											<>
+												<Grid item xs={12} sx={{ margin: '1em 0em 1em 0em' }}>
+													<Typography>{service.description}</Typography>
+												</Grid>
+												<Grid item xs={12}>
+													<TextField
+														variant="outlined"
+														fullWidth
+														label={<Trans>Service name</Trans>}
+														value={$settings.name}
+														onChange={handleServiceName}
+													/>
+												</Grid>
+											</>
+										)}
+
+										<Grid item xs={12}>
+											<FacebookAds
+												settings={$settings.settings}
+												skills={serviceSkills}
+												metadata={$metadata}
+												streams={$settings.streams}
+												onChange={handleServiceChange}
+												channelId={_channelid}
+												authenticated={serviceAuthenticated}
+												setAuthenticated={setServiceAuthenticated}
+												restreamer={props.restreamer}
 											/>
 										</Grid>
 									</TabContent>

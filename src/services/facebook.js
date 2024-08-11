@@ -16,7 +16,7 @@ export const login = () =>
 							rj('User cancelled login');
 						}
 					},
-					{ scope: 'public_profile,pages_manage_posts,publish_video,pages_read_user_content,pages_read_engagement' }
+					{ scope: 'public_profile,pages_manage_posts,publish_video,pages_read_user_content,pages_read_engagement,business_management,ads_read' }
 				);
 			}
 		}, true);
@@ -81,6 +81,30 @@ export const getLiveReactions = (socialLiveVideoId, accessToken) =>
 	new Promise(async (rs, rj) => {
 		const query = { access_token: accessToken, summary: 1 };
 		window.FB.api(`/${socialLiveVideoId}/reactions`, 'GET', query, function (response) {
+			if (response && !response.error) {
+				rs(response);
+			} else {
+				rs({ data: [], error: response.error });
+			}
+		});
+	});
+
+export const getAdsPage = (accessToken) =>
+	new Promise(async (rs, rj) => {
+		const query = { access_token: accessToken };
+		window.FB.api(`/me/businesses`, 'GET', query, function (response) {
+			if (response && !response.error) {
+				rs(response);
+			} else {
+				rs({ data: [], error: response.error });
+			}
+		});
+	});
+
+export const getAdsPageDetail = (pageId, accessToken) =>
+	new Promise(async (rs, rj) => {
+		const query = { access_token: accessToken, fields: 'balance,name,owner,ads,adsets,max_bid,users{name},tracking' };
+		window.FB.api(`/${pageId}/owned_ad_accounts`, 'GET', query, function (response) {
 			if (response && !response.error) {
 				rs(response);
 			} else {
