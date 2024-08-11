@@ -6,6 +6,8 @@ import '@fontsource/dosis';
 import '@fontsource/roboto';
 import CssBaseline from '@mui/material/CssBaseline';
 
+import fbSDK from './utils/fbSDK';
+
 import theme from './theme';
 import RestreamerUI from './RestreamerUI';
 
@@ -19,11 +21,14 @@ if (urlParams.has('address') === true) {
 	address = urlParams.get('address');
 }
 
-createRoot(document.getElementById('root')).render(
-	<StyledEngineProvider injectFirst>
-		<ThemeProvider theme={theme}>
-			<CssBaseline />
-			<RestreamerUI address={address} />
-		</ThemeProvider>
-	</StyledEngineProvider>
-);
+fbSDK().then(() => {
+	createRoot(document.getElementById('root')).render(
+		<StyledEngineProvider injectFirst>
+			<ThemeProvider theme={theme}>
+				<CssBaseline />
+				<RestreamerUI address={address} />
+			</ThemeProvider>
+		</StyledEngineProvider>
+	);
+});
+

@@ -57,6 +57,7 @@ class Restreamer {
 		this.updates = null;
 		this.hasUpdates = false;
 		this.hasService = false;
+		this.currentFbInfo = {};
 
 		this._checkForUpdates();
 	}
@@ -1107,6 +1108,8 @@ class Restreamer {
 					index: index,
 					channelid: p.reference,
 					name: p.metadata.name,
+					profileId: p.metadata.profile_id,
+					socialLiveVideoId: p.metadata.social_live_video_id,
 				});
 
 				egresses.set(channelid, egressList);
@@ -1180,6 +1183,10 @@ class Restreamer {
 			delete metadata.imported;
 			await this.SetIngestMetadata(channelid, metadata);
 		}
+	}
+
+	_getSocialLiveVideoId({ service, streamKeyPrimary }) {
+		return service === 'facebook' && streamKeyPrimary ? streamKeyPrimary.split('?')[0] : '';
 	}
 
 	CreateChannel(name) {
@@ -1301,6 +1308,8 @@ class Restreamer {
 			index: egress.index,
 			channelid: egress.channelid,
 			name: egress.name,
+			socialLiveVideoId: egress.socialLiveVideoId,
+			profileId: egress.profileId,
 		};
 	}
 
@@ -2604,7 +2613,7 @@ class Restreamer {
 	}
 
 	// Create an egress process
-	async CreateEgress(channelid, service, global, inputs, outputs, control) {
+	async CreateEgress(channelid, service, global, inputs, outputs, control, metadata) {
 		const channel = this.GetChannel(channelid);
 		if (!channel) {
 			return ['', { message: 'Unknown channel ID' }];
@@ -2617,6 +2626,8 @@ class Restreamer {
 			service: service,
 			channelid: channel.channelid,
 			name: '',
+			socialLiveVideoId: metadata.social_live_video_id,
+			profileId: metadata.profile_id,
 		};
 
 		this.SetChannelEgress(channelid, egress.id, egress);
@@ -2660,6 +2671,8 @@ class Restreamer {
 				p.service = egress.service;
 				p.index = egress.index;
 				p.name = egress.name;
+				p.socialLiveVideoId = egress.socialLiveVideoId;
+				p.profileId = egress.profileId;
 
 				return true;
 			}
@@ -2701,6 +2714,44 @@ class Restreamer {
 
 	async ListProcesses(filter = [], ids = []) {
 		return await this._listProcesses(filter, '', ids);
+	}
+
+	CallbackLogin(serviceId, name, body) {
+		if (serviceId === 'facebook') {
+			const { accounts = [], ..._body } = body;
+			this.SetFBInfo(body);
+			return this._loginFb(name, _body);
+		}
+
+		return Promise.resolve(true);
+	}
+
+	CallbackLogout(serviceId, name) {
+		if (serviceId === 'facebook') {
+			return this._logoutFb(name);
+		}
+
+		return Promise.resolve(true);
+	}
+
+	SetFBInfo(fbInfo) {
+		const { accounts = [] } = fbInfo;
+
+		this.currentFbInfo = {
+			...this.currentDbInfo,
+			...fbInfo,
+			accounts: accounts.reduce(
+				(prev, account) => ({
+					...prev,
+					[account.id]: account,
+				}),
+				{}
+			),
+		};
+	}
+
+	GetFbAccountAccessToken(pageId) {
+		return this.currentFbInfo?.accounts[pageId]?.access_token;
 	}
 
 	async GetDebug(processid) {
@@ -2747,6 +2798,26 @@ class Restreamer {
 		}
 
 		return this.hasUpdates;
+	}
+
+	GetFBAccountInfo(channelId) {
+		return this._getFbAccountInfo(channelId);
+	}
+
+	CheckAuthFb(channelId) {
+		return this._checkAuthFb(channelId);
+	}
+
+	CreateFbLiveStream(channelId, pageId, body) {
+		return this._createFbLiveStream(channelId, pageId, body);
+	}
+
+	CreateFbLiveStreamOnMyTimeline(channelId, body) {
+		return this._createFbLiveStreamOnMyTimeline(channelId, body);
+	}
+
+	GetFBMePicture(channelId) {
+		return this._getFBMePicture(channelId);
 	}
 
 	HasService() {
@@ -2864,6 +2935,86 @@ class Restreamer {
 
 		for (let i = 0; i < val.length; i++) {
 			val[i] = this._sanitizeProcess(val[i]);
+		}
+
+		return val;
+	}
+
+	async _loginFb(id, body) {
+		const [, err] = await this._call(this.api.LoginFb, id, body);
+
+		if (err !== null) {
+			return Promise.reject(err);
+		}
+
+		return Promise.resolve(true);
+	}
+
+	async _logoutFb(id) {
+		const [, err] = await this._call(this.api.LogoutFb, id);
+
+		if (err !== null) {
+			return false;
+		}
+
+		return true;
+	}
+
+	async _getFbAccountInfo(id) {
+		const [val, err] = await this._call(this.api.GetFbAccountInfo, id);
+
+		if (err !== null) {
+			if (err?.details || [].includes('fb_err_190')) {
+				window.location.reload();
+
+				return err;
+			}
+
+			return err;
+		}
+
+		return val;
+	}
+
+	async _createFbLiveStream(id, pageId, body) {
+		const [val, err] = await this._call(this.api.CreateFbLiveStream, id, pageId, body);
+
+		if (err !== null) {
+			return Promise.reject(err);
+		}
+
+		return val;
+	}
+
+	async _createFbLiveStreamOnMyTimeline(id, body) {
+		const [val, err] = await this._call(this.api.CreateFbLiveStreamOnMyTimeline, id, body);
+
+		if (err !== null) {
+			return Promise.reject(err);
+		}
+
+		return val;
+	}
+
+	async _getFBMePicture(id) {
+		const [val, err] = await this._call(this.api.GetFBMePicture, id);
+
+		if (err !== null) {
+			return Promise.reject(err);
+		}
+
+		return val;
+	}
+
+	async _checkAuthFb(id) {
+		const [val, err] = await this._call(this.api.CheckAuthFB, id);
+
+		if (err !== null) {
+			// if (err?.details?.includes('fb_err_190')) {
+			// 	window.location.reload();
+			// }
+
+			return { is_authenticated: false, user_id: null };
 		}
 
 		return val;

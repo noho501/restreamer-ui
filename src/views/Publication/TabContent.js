@@ -24,16 +24,31 @@ const useStyles = makeStyles((theme) => ({
 export default function TabContent(props) {
 	const classes = useStyles();
 
+	const renderVersionInfo = (version, loginButton) => {
+		const LoginButton = loginButton;
+
+		if (!loginButton) {
+			return <Typography>v{props.service.version}</Typography>;
+		}
+
+		return (
+			<Stack sx={{ width: '100%' }} direction="row" justifyContent="space-between" alignItems="center">
+				<Typography>v{props.service.version}</Typography>
+				<LoginButton cbLogin={props.cbLogin} cbLogout={props.cbLogout} authenticated={props.authenticated} setAuthenticated={props.setAuthenticated} />
+			</Stack>
+		);
+	};
+
 	return (
 		<Grid container spacing={2}>
 			<Grid item xs={12}>
-				<Stack direction="row" justifyContent="flex-start" alignItems="center" spacing={2}>
+				<Stack sx={{ width: '100%' }} direction="row" justifyContent="flex-start" alignItems="center" spacing={2}>
 					<props.service.icon className={classes.serviceIcon} />
-					<Stack direction="column" justifyContent="center" alignItems="flex-start" spacing={0}>
+					<Stack sx={{ width: '100%' }} direction="column" justifyContent="center" alignItems="flex-start" spacing={0}>
 						<Typography variant="h1" className={classes.serviceName}>
 							{props.service.name}
 						</Typography>
-						<Typography>v{props.service.version}</Typography>
+						{renderVersionInfo(props.service.version, props.service.loginButton)}
 					</Stack>
 				</Stack>
 			</Grid>

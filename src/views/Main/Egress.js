@@ -11,6 +11,7 @@ import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import Services from '../Publication/Services';
+import useInterval from '../../hooks/useInterval';
 
 const useStyles = makeStyles((theme) => ({
 	egressBar: {
@@ -134,6 +135,13 @@ export default function Egress(props) {
 			color = 'secondary';
 			break;
 	}
+
+	useInterval(() => {
+		const isConnected = !['disconnecting', 'connecting', 'error', 'disconnected'].includes(props.state);
+		if (isConnected) {
+			props.onFetchComment();
+		}
+	}, 3000);
 
 	return (
 		<Grid container className={classes.egressBar}>

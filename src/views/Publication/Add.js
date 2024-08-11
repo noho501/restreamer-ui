@@ -69,6 +69,7 @@ export default function Add(props) {
 		license: '',
 	});
 	const [$saving, setSaving] = React.useState(false);
+	const [serviceAuthenticated, setServiceAuthenticated] = React.useState(false);
 	const [$invalid, setInvalid] = React.useState(false);
 
 	React.useEffect(() => {
@@ -161,7 +162,7 @@ export default function Add(props) {
 		setService(service);
 	};
 
-	const handleServiceChange = (outputs, settings) => {
+	const handleServiceChange = (outputs, settings, metaData = {}) => {
 		if (!Array.isArray(outputs)) {
 			outputs = [outputs];
 		}
@@ -170,6 +171,7 @@ export default function Add(props) {
 			...$settings,
 			outputs: outputs,
 			settings: settings,
+			...metaData,
 		});
 	};
 
@@ -191,7 +193,7 @@ export default function Add(props) {
 
 		const [global, inputs, outputs] = helper.createInputsOutputs($sources, $settings.profiles, $settings.outputs);
 
-		const [id, err] = await props.restreamer.CreateEgress(_channelid, $service, global, inputs, outputs, $settings.control);
+		const [id, err] = await props.restreamer.CreateEgress(_channelid, $service, global, inputs, outputs, $settings.control, $settings);
 		if (err !== null) {
 			setSaving(false);
 			notify.Dispatch('error', 'save:egress:' + $service, i18n._(t`Failed to create publication service (${err.message})`));
@@ -249,6 +251,18 @@ export default function Add(props) {
 		H(topic);
 	};
 
+	const handleCbLogin = (serviceId, name, token) => {
+		return props.restreamer.CallbackLogin(serviceId, name, token);
+	};
+
+	const handleCbLogout = (serviceId, name) => {
+		return props.restreamer.CallbackLogout(serviceId, name);
+	};
+
+	const channelid = props.restreamer.SelectChannel(_channelid);
+	if (channelid === '' || channelid !== _channelid) {
+		navigate('/', { replace: true });
+	}
 	if ($ready === false) {
 		return null;
 	}
@@ -378,25 +392,43 @@ export default function Add(props) {
 					<React.Fragment>
 						<Grid container spacing={1}>
 							<TabsVerticalGrid>
-								<Tabs orientation="vertical" variant="scrollable" value={$tab} onChange={handleChangeTab} className="tabs">
+								<Tabs
+									sx={{ width: '30%' }}
+									orientation="vertical"
+									variant="scrollable"
+									value={$tab}
+									onChange={handleChangeTab}
+									className="tabs"
+								>
 									<Tab className="tab" label={<Trans>General</Trans>} value="general" />
 									<Tab className="tab" label={<Trans>Source &amp; Encoding</Trans>} value="encoding" />
 									<Tab className="tab" label={<Trans>Process control</Trans>} value="process" />
 								</Tabs>
-								<TabPanel value={$tab} index="general" className="panel">
-									<TabContent service={service}>
-										<Grid item xs={12} sx={{ margin: '1em 0em 1em 0em' }}>
-											<Typography>{service.description}</Typography>
-										</Grid>
-										<Grid item xs={12}>
-											<TextField
-												variant="outlined"
-												fullWidth
-												label={<Trans>Service name</Trans>}
-												value={$settings.name}
-												onChange={handleServiceName}
-											/>
-										</Grid>
+								<TabPanel sx={{ width: '70%' }} value={$tab} index="general" className="panel">
+									<TabContent
+										service={service}
+										cbLogin={handleCbLogin}
+										cbLogout={handleCbLogout}
+										setAuthenticated={setServiceAuthenticated}
+										authenticated={serviceAuthenticated}
+									>
+										{!serviceAuthenticated && (
+											<>
+												<Grid item xs={12} sx={{ margin: '1em 0em 1em 0em' }}>
+													<Typography>{service.description}</Typography>
+												</Grid>
+												<Grid item xs={12}>
+													<TextField
+														variant="outlined"
+														fullWidth
+														label={<Trans>Service name</Trans>}
+														value={$settings.name}
+														onChange={handleServiceName}
+													/>
+												</Grid>
+											</>
+										)}
+
 										<Grid item xs={12}>
 											<ServiceControl
 												settings={$settings.settings}
@@ -404,12 +436,17 @@ export default function Add(props) {
 												metadata={$metadata}
 												streams={$settings.streams}
 												onChange={handleServiceChange}
+												channelId={_channelid}
+												authenticated={serviceAuthenticated}
+												setAuthenticated={setServiceAuthenticated}
+												restreamer={props.restreamer}
+												onServiceDone={handleServiceDone}
 											/>
 										</Grid>
 									</TabContent>
 								</TabPanel>
-								<TabPanel value={$tab} index="process" className="panel">
-									<TabContent service={service}>
+								<TabPanel sx={{ width: '70%' }} value={$tab} index="process" className="panel">
+									<TabContent service={service} cbLogin={handleCbLogin} cbLogout={handleCbLogout}>
 										<Grid item xs={12}>
 											<Typography variant="h2">
 												<Trans>Process</Trans>
@@ -420,8 +457,8 @@ export default function Add(props) {
 										</Grid>
 									</TabContent>
 								</TabPanel>
-								<TabPanel value={$tab} index="encoding" className="panel">
-									<TabContent service={service}>
+								<TabPanel sx={{ width: '70%' }} value={$tab} index="encoding" className="panel">
+									<TabContent service={service} cbLogin={handleCbLogin} cbLogout={handleCbLogout}>
 										<Grid item xs={12}>
 											<Typography variant="h2">
 												<Trans>Source &amp; Encoding</Trans>
@@ -500,9 +537,16 @@ export default function Add(props) {
 								</React.Fragment>
 							}
 							buttonsRight={
-								<Button variant="outlined" color="primary" onClick={handleServiceDone} disabled={$settings.output === null || $saving === true}>
-									<Trans>Save</Trans>
-								</Button>
+								!serviceAuthenticated && (
+									<Button
+										variant="outlined"
+										color="primary"
+										onClick={handleServiceDone}
+										disabled={$settings.output === null || $saving === true}
+									>
+										<Trans>Save</Trans>
+									</Button>
+								)
 							}
 						/>
 					</React.Fragment>
